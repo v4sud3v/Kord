@@ -1,17 +1,14 @@
-from fastapi import FastAPI, Form
+from fastapi import FastAPI
 from dotenv import load_dotenv
 import uvicorn
 
-from app.handlers import handle_incoming_message
+from app.routes import webhook
 
 load_dotenv()
 
 app = FastAPI()
 
-
-@app.post("/webhook")
-async def webhook(Body: str = Form(...), From: str = Form(...)):
-    return handle_incoming_message(body=Body, from_number=From)
+app.include_router(webhook.router)
 
 
 if __name__ == "__main__":

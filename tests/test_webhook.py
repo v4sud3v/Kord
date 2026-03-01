@@ -1,7 +1,7 @@
 from fastapi.testclient import TestClient
 
 from main import app
-from app.handlers import handle_incoming_message
+from app.routes.webhook import handle_incoming_message
 
 client = TestClient(app)
 
