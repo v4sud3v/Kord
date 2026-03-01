@@ -1,0 +1,15 @@
+[project]
+name = "kord"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.14"
+dependencies = [
+    "fastapi[standard]>=0.134.0",
+    "fpdf2>=2.8.7",
+    "google-generativeai>=0.8.6",
+    "python-dotenv>=1.2.1",
+    "python-multipart>=0.0.22",
+    "sqlalchemy>=2.0.47",
+    "twilio>=9.10.2",
+]

@@ -1,0 +1,32 @@
+[
+  {
+    "name": "E-Grantz",
+    "description": "Kerala SC/ST scholarship for post-matric students.",
+    "criteria": {
+      "caste": ["SC", "ST"],
+      "min_grade": 8,
+      "max_income": 250000
+    },
+    "documents": ["Aadhaar card", "Ration card", "Caste certificate", "Income certificate"]
+  },
+  {
+    "name": "Prathibha",
+    "description": "Merit-based scholarship for students scoring above 90% in SSLC.",
+    "criteria": {
+      "min_grade": 10,
+      "min_marks_percent": 90
+    },
+    "documents": ["SSLC marksheet", "Aadhaar card", "School certificate"]
+  },
+  {
+    "name": "Vidyakiranam",
+    "description": "Kerala OBC scholarship for students in grades 1–10.",
+    "criteria": {
+      "caste": ["OBC"],
+      "min_grade": 1,
+      "max_grade": 10,
+      "max_income": 100000
+    },
+    "documents": ["Aadhaar card", "Community certificate", "Income certificate"]
+  }
+]
