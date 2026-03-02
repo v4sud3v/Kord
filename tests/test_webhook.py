@@ -5,7 +5,7 @@ from unittest.mock import AsyncMock, patch
 from fastapi.testclient import TestClient
 
 from main import app
-from app.routes.webhook import handle_incoming_message, handle_audio_message
+from routers.webhook import handle_incoming_message, handle_audio_message
 
 client = TestClient(app)
 
@@ -26,8 +26,8 @@ def test_handle_incoming_message_returns_ok(capsys):
 # ────────────────────────────────────────────
 
 @pytest.mark.asyncio
-@patch("app.routes.webhook.translate_audio", new_callable=AsyncMock)
-@patch("app.routes.webhook.fetch_twilio_audio", new_callable=AsyncMock)
+@patch("routers.webhook.translate_audio", new_callable=AsyncMock)
+@patch("routers.webhook.fetch_twilio_audio", new_callable=AsyncMock)
 async def test_handle_audio_message_returns_translation(mock_fetch, mock_translate, capsys):
     mock_fetch.return_value = (b"fake-audio-bytes", "audio/ogg")
     mock_translate.return_value = {
@@ -75,8 +75,8 @@ def test_webhook_route_missing_fields():
 # Integration tests: audio route
 # ────────────────────────────────────────────
 
-@patch("app.routes.webhook.translate_audio", new_callable=AsyncMock)
-@patch("app.routes.webhook.fetch_twilio_audio", new_callable=AsyncMock)
+@patch("routers.webhook.translate_audio", new_callable=AsyncMock)
+@patch("routers.webhook.fetch_twilio_audio", new_callable=AsyncMock)
 def test_webhook_audio_route(mock_fetch, mock_translate):
     mock_fetch.return_value = (b"fake-audio", "audio/ogg")
     mock_translate.return_value = {
@@ -101,8 +101,8 @@ def test_webhook_audio_route(mock_fetch, mock_translate):
     assert data["language_code"] == "es"
 
 
-@patch("app.routes.webhook.translate_audio", new_callable=AsyncMock)
-@patch("app.routes.webhook.fetch_twilio_audio", new_callable=AsyncMock)
+@patch("routers.webhook.translate_audio", new_callable=AsyncMock)
+@patch("routers.webhook.fetch_twilio_audio", new_callable=AsyncMock)
 def test_webhook_text_when_no_media(mock_fetch, mock_translate):
     """When NumMedia=0, the text handler is used even if MediaUrl0 is absent."""
     response = client.post(

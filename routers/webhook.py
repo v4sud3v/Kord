@@ -1,7 +1,10 @@
-from fastapi import APIRouter, Form
 from typing import Optional
 
-from app.services import fetch_twilio_audio, translate_audio
+from fastapi import APIRouter, Form
+
+from services.twilio import fetch_twilio_audio
+from services.sarvam import translate_audio
+from services.nlp import process_transcript, print_nlp_results
 
 router = APIRouter()
 
@@ -12,12 +15,10 @@ def handle_incoming_message(body: str, from_number: str) -> dict:
     return {"status": "ok"}
 
 
-async def handle_audio_message(
-    media_url: str, content_type: str, from_number: str
-) -> dict:
+async def handle_audio_message(media_url: str, content_type: str, from_number: str) -> dict:
     """
     Fetch audio from Twilio, send it to Sarvam for translation,
-    and print the result. No file is saved to disk.
+    run the NLP pipeline (tokenize → extract → embed), and print everything.
     """
     print(f"Audio message from {from_number} — fetching from Twilio...")
     audio_bytes, actual_ct = await fetch_twilio_audio(media_url)
@@ -33,10 +34,18 @@ async def handle_audio_message(
     print(f"[Sarvam] Transcript    : {transcript}")
     print(f"[Sarvam] Language code : {language}")
 
+    # ── NLP Pipeline: tokenize → extract details → embed ──
+    nlp_result = process_transcript(transcript)
+    print_nlp_results(nlp_result)
+
     return {
         "status": "ok",
         "transcript": transcript,
         "language_code": language,
+        "tokens": nlp_result["tokens"],
+        "cleaned_tokens": nlp_result["cleaned_tokens"],
+        "extracted_details": nlp_result["details"],
+        "embedding_shape": list(nlp_result["embedding"].shape),
     }
 
 
@@ -48,13 +57,10 @@ async def webhook(
     MediaUrl0: Optional[str] = Form(None),
     MediaContentType0: Optional[str] = Form(None),
 ):
-    # If the message contains audio media, translate it
     if NumMedia > 0 and MediaUrl0:
         return await handle_audio_message(
             media_url=MediaUrl0,
             content_type=MediaContentType0 or "",
             from_number=From,
         )
-
-    # Otherwise treat it as a plain text message
     return handle_incoming_message(body=Body, from_number=From)

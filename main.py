@@ -2,13 +2,13 @@ from fastapi import FastAPI
 from dotenv import load_dotenv
 import uvicorn
 
-from app.routes import webhook
+from routers.webhook import router as webhook_router
 
 load_dotenv()
 
 app = FastAPI()
 
-app.include_router(webhook.router)
+app.include_router(webhook_router)
 
 
 if __name__ == "__main__":

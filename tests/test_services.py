@@ -5,13 +5,8 @@ from unittest.mock import AsyncMock, patch, MagicMock
 
 import pytest
 
-from app.services import (
-    get_sarvam_api_key,
-    get_twilio_credentials,
-    fetch_twilio_audio,
-    translate_audio,
-    _codec_from_content_type,
-)
+from services.sarvam import get_sarvam_api_key, translate_audio, _codec_from_content_type
+from services.twilio import get_twilio_credentials, fetch_twilio_audio
 
 
 # ────────────────────────────────────────────
@@ -72,7 +67,7 @@ def test_codec_from_content_type(ct, expected):
 # ────────────────────────────────────────────
 
 @pytest.mark.asyncio
-@patch("app.services.httpx.AsyncClient")
+@patch("services.twilio.httpx.AsyncClient")
 async def test_fetch_twilio_audio(MockClient, monkeypatch):
     monkeypatch.setenv("TWILIO_ACCOUNT_SID", "ACxxx")
     monkeypatch.setenv("TWILIO_AUTH_TOKEN", "tok123")
@@ -101,7 +96,7 @@ async def test_fetch_twilio_audio(MockClient, monkeypatch):
 # ────────────────────────────────────────────
 
 @pytest.mark.asyncio
-@patch("app.services.AsyncSarvamAI")
+@patch("services.sarvam.AsyncSarvamAI")
 async def test_translate_audio(MockSarvam, monkeypatch):
     monkeypatch.setenv("SARVAM_API_KEY", "test-key")
 
