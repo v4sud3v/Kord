@@ -17,6 +17,22 @@ from agent.tools.check_session import (
 )
 from services.conversation import reset_session
 
+# Patch match_scholarships globally for all tests in this module
+# so they don't hit the real Supabase DB
+_MOCK_MATCH = patch(
+    "agent.tools.check_session.match_scholarships",
+    return_value=[],
+)
+
+# Patch send_whatsapp so integration tests don't hit Twilio
+_MOCK_SEND = patch(
+    "routers.webhook.send_whatsapp",
+    new_callable=AsyncMock,
+    return_value={"sid": "SM_test", "status": "queued"},
+)
+
+_MOCK_MATCH.start()
+_MOCK_SEND.start()
 client = TestClient(app)
 
 
@@ -45,8 +61,14 @@ def test_build_reply_asks_for_first_missing():
     assert build_reply(["grade", "income"]) == TEMPLATES["grade"]
 
 
-def test_build_reply_all_collected():
-    assert build_reply([]) == ALL_COLLECTED_TEMPLATE
+def test_build_reply_all_collected_with_matches():
+    reply = build_reply([], match_count=5)
+    assert "5 scholarship" in reply
+
+
+def test_build_reply_all_collected_no_matches():
+    reply = build_reply([], match_count=0)
+    assert "couldn't find" in reply.lower() or "database" in reply.lower()
 
 
 # ────────────────────────────────────────────
@@ -60,6 +82,7 @@ async def test_handle_text_message(mock_extract, capsys):
     result = await handle_text_message(text="I am in plus two", from_number="whatsapp:+111")
     assert result["status"] == "ok"
     assert result["bucket_3_missing"] == ["caste"]
+    assert "matched_scholarships" in result
     assert result["reply"] == TEMPLATES["caste"]
 
 
@@ -69,7 +92,7 @@ async def test_handle_text_all_keys(mock_extract, capsys):
     mock_extract.return_value = _fake_buckets(all_collected=True)
     result = await handle_text_message(text="OBC", from_number="whatsapp:+222")
     assert result["all_keys_collected"] is True
-    assert result["reply"] == ALL_COLLECTED_TEMPLATE
+    assert "matched_scholarships" in result
     captured = capsys.readouterr()
     assert "All keys collected" in captured.out
 
@@ -171,7 +194,7 @@ def test_build_reply_fallback_for_unknown_key():
 
 
 def test_build_reply_order_matters():
-    """Should ask for the FIRST missing key only."""
+    """Should ask for the FIRST missing key only (match_count irrelevant when missing)."""
     assert build_reply(["income", "caste"]) == TEMPLATES["income"]
     assert build_reply(["caste", "grade"]) == TEMPLATES["caste"]
 
@@ -207,7 +230,7 @@ async def test_multi_turn_conversation(mock_extract):
     r2 = await handle_text_message("OBC", phone)
     assert r2["bucket_3_missing"] == []
     assert r2["all_keys_collected"] is True
-    assert r2["reply"] == ALL_COLLECTED_TEMPLATE
+    assert "matched_scholarships" in r2
     # Verify accumulated state from BOTH messages
     assert r2["bucket_1_keys"]["grade"] == "12"
     assert r2["bucket_1_keys"]["caste"] == "OBC"
@@ -263,7 +286,7 @@ async def test_multi_turn_bpl_income_zero(mock_extract):
     result = await handle_text_message("I am BPL, 8th grade, SC", phone)
     assert result["all_keys_collected"] is True
     assert result["bucket_1_keys"]["income"] == 0
-    assert result["reply"] == ALL_COLLECTED_TEMPLATE
+    assert "matched_scholarships" in result
 
     reset_session(phone)
 
