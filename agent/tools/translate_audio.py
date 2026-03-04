@@ -1,4 +1,4 @@
-"""Sarvam AI speech-to-text + translation service."""
+"""Tool: Translate audio via Sarvam AI speech-to-text."""
 
 import os
 

@@ -1,4 +1,4 @@
-"""Groq LLM service — the ONLY job of the AI in the entire architecture.
+"""Tool: Extract buckets from translated text via Groq LLM.
 
 Takes the translated text and sorts it into exactly three JSON buckets:
   bucket_1_keys   → grade, income, caste  (normalised, or null)

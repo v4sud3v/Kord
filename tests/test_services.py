@@ -1,13 +1,13 @@
-"""Tests for services: Sarvam, Twilio, Groq bucket extraction, Conversation."""
+"""Tests for agent tools: Sarvam, Twilio, Groq bucket extraction, Conversation."""
 
 import json
 from unittest.mock import AsyncMock, patch, MagicMock
 
 import pytest
 
-from services.sarvam import get_sarvam_api_key, translate_audio, _codec_from_content_type
-from services.twilio import get_twilio_credentials, fetch_twilio_audio
-from services.groq_llm import get_groq_api_key, extract_buckets, REQUIRED_KEYS
+from agent.tools.translate_audio import get_sarvam_api_key, translate_audio, _codec_from_content_type
+from agent.tools.fetch_audio import get_twilio_credentials, fetch_twilio_audio
+from agent.tools.extract_buckets import get_groq_api_key, extract_buckets, REQUIRED_KEYS
 from services.conversation import Session, get_session, reset_session
 
 
@@ -27,7 +27,7 @@ def test_get_sarvam_api_key_raises_when_missing(monkeypatch):
 
 
 @pytest.mark.asyncio
-@patch("services.sarvam.AsyncSarvamAI")
+@patch("agent.tools.translate_audio.AsyncSarvamAI")
 async def test_translate_audio(MockSarvam, monkeypatch):
     monkeypatch.setenv("SARVAM_API_KEY", "test-key")
     mock_response = MagicMock()
@@ -77,7 +77,7 @@ def test_codec_from_content_type(ct, expected):
 
 
 @pytest.mark.asyncio
-@patch("services.twilio.httpx.AsyncClient")
+@patch("agent.tools.fetch_audio.httpx.AsyncClient")
 async def test_fetch_twilio_audio(MockClient, monkeypatch):
     monkeypatch.setenv("TWILIO_ACCOUNT_SID", "ACxxx")
     monkeypatch.setenv("TWILIO_AUTH_TOKEN", "tok123")
@@ -115,7 +115,7 @@ def test_get_groq_api_key_raises_when_missing(monkeypatch):
 
 
 @pytest.mark.asyncio
-@patch("services.groq_llm.AsyncGroq")
+@patch("agent.tools.extract_buckets.AsyncGroq")
 async def test_extract_buckets_parses_response(MockGroq, monkeypatch):
     monkeypatch.setenv("GROQ_API_KEY", "gsk_test")
 
@@ -142,7 +142,7 @@ async def test_extract_buckets_parses_response(MockGroq, monkeypatch):
 
 
 @pytest.mark.asyncio
-@patch("services.groq_llm.AsyncGroq")
+@patch("agent.tools.extract_buckets.AsyncGroq")
 async def test_extract_buckets_handles_bad_json(MockGroq, monkeypatch):
     monkeypatch.setenv("GROQ_API_KEY", "gsk_test")
 
@@ -291,7 +291,7 @@ def test_session_missing_recomputed_after_each_merge():
 # ────────────────────────────────────────────
 
 @pytest.mark.asyncio
-@patch("services.groq_llm.AsyncGroq")
+@patch("agent.tools.extract_buckets.AsyncGroq")
 async def test_extract_buckets_fills_missing_fields(MockGroq, monkeypatch):
     """If Groq returns valid JSON but missing keys, setdefault fills them."""
     monkeypatch.setenv("GROQ_API_KEY", "gsk_test")
@@ -319,7 +319,7 @@ async def test_extract_buckets_fills_missing_fields(MockGroq, monkeypatch):
 
 
 @pytest.mark.asyncio
-@patch("services.groq_llm.AsyncGroq")
+@patch("agent.tools.extract_buckets.AsyncGroq")
 async def test_extract_buckets_completely_empty_json(MockGroq, monkeypatch):
     """Even an empty JSON object {} should return a safe structure."""
     monkeypatch.setenv("GROQ_API_KEY", "gsk_test")
@@ -338,4 +338,3 @@ async def test_extract_buckets_completely_empty_json(MockGroq, monkeypatch):
     assert result["bucket_1_keys"]["income"] is None
     assert result["bucket_2_bonus"] == []
     assert result["bucket_3_missing"] == []
-

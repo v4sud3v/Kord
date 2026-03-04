@@ -1,4 +1,4 @@
-"""Tests for the webhook router and the bucket pipeline logic."""
+"""Tests for the webhook router and the agent pipeline logic."""
 
 import pytest
 from unittest.mock import AsyncMock, patch, MagicMock
@@ -6,10 +6,12 @@ from unittest.mock import AsyncMock, patch, MagicMock
 from fastapi.testclient import TestClient
 
 from main import app
-from routers.webhook import (
+from agent.agent import (
     handle_text_message,
     handle_audio_message,
-    _build_reply,
+)
+from agent.tools.check_session import (
+    build_reply,
     TEMPLATES,
     ALL_COLLECTED_TEMPLATE,
 )
@@ -35,16 +37,16 @@ def _fake_buckets(all_collected=False):
 
 
 # ────────────────────────────────────────────
-# _build_reply (pure Python, deterministic)
+# build_reply (pure Python, deterministic)
 # ────────────────────────────────────────────
 
 def test_build_reply_asks_for_first_missing():
-    assert _build_reply(["caste"]) == TEMPLATES["caste"]
-    assert _build_reply(["grade", "income"]) == TEMPLATES["grade"]
+    assert build_reply(["caste"]) == TEMPLATES["caste"]
+    assert build_reply(["grade", "income"]) == TEMPLATES["grade"]
 
 
 def test_build_reply_all_collected():
-    assert _build_reply([]) == ALL_COLLECTED_TEMPLATE
+    assert build_reply([]) == ALL_COLLECTED_TEMPLATE
 
 
 # ────────────────────────────────────────────
@@ -52,7 +54,7 @@ def test_build_reply_all_collected():
 # ────────────────────────────────────────────
 
 @pytest.mark.asyncio
-@patch("routers.webhook.extract_buckets", new_callable=AsyncMock)
+@patch("agent.agent.extract_buckets", new_callable=AsyncMock)
 async def test_handle_text_message(mock_extract, capsys):
     mock_extract.return_value = _fake_buckets(all_collected=False)
     result = await handle_text_message(text="I am in plus two", from_number="whatsapp:+111")
@@ -62,7 +64,7 @@ async def test_handle_text_message(mock_extract, capsys):
 
 
 @pytest.mark.asyncio
-@patch("routers.webhook.extract_buckets", new_callable=AsyncMock)
+@patch("agent.agent.extract_buckets", new_callable=AsyncMock)
 async def test_handle_text_all_keys(mock_extract, capsys):
     mock_extract.return_value = _fake_buckets(all_collected=True)
     result = await handle_text_message(text="OBC", from_number="whatsapp:+222")
@@ -77,9 +79,9 @@ async def test_handle_text_all_keys(mock_extract, capsys):
 # ────────────────────────────────────────────
 
 @pytest.mark.asyncio
-@patch("routers.webhook.extract_buckets", new_callable=AsyncMock)
-@patch("routers.webhook.translate_audio", new_callable=AsyncMock)
-@patch("routers.webhook.fetch_twilio_audio", new_callable=AsyncMock)
+@patch("agent.agent.extract_buckets", new_callable=AsyncMock)
+@patch("agent.agent.translate_audio", new_callable=AsyncMock)
+@patch("agent.agent.fetch_twilio_audio", new_callable=AsyncMock)
 async def test_handle_audio_message(mock_fetch, mock_translate, mock_extract, capsys):
     mock_fetch.return_value = (b"fake-audio", "audio/ogg")
     mock_translate.return_value = {"transcript": "I study in plus two", "language_code": "ml-IN"}
@@ -103,7 +105,7 @@ async def test_handle_audio_message(mock_fetch, mock_translate, mock_extract, ca
 # Integration: text route
 # ────────────────────────────────────────────
 
-@patch("routers.webhook.extract_buckets", new_callable=AsyncMock)
+@patch("agent.agent.extract_buckets", new_callable=AsyncMock)
 def test_webhook_text_route(mock_extract):
     mock_extract.return_value = _fake_buckets(all_collected=False)
     resp = client.post("/webhook", data={"Body": "Hello", "From": "whatsapp:+444"})
@@ -122,9 +124,9 @@ def test_webhook_missing_from_field():
 # Integration: audio route
 # ────────────────────────────────────────────
 
-@patch("routers.webhook.extract_buckets", new_callable=AsyncMock)
-@patch("routers.webhook.translate_audio", new_callable=AsyncMock)
-@patch("routers.webhook.fetch_twilio_audio", new_callable=AsyncMock)
+@patch("agent.agent.extract_buckets", new_callable=AsyncMock)
+@patch("agent.agent.translate_audio", new_callable=AsyncMock)
+@patch("agent.agent.fetch_twilio_audio", new_callable=AsyncMock)
 def test_webhook_audio_route(mock_fetch, mock_translate, mock_extract):
     mock_fetch.return_value = (b"audio", "audio/ogg")
     mock_translate.return_value = {"transcript": "hi", "language_code": "en"}
@@ -147,7 +149,7 @@ def test_webhook_audio_route(mock_fetch, mock_translate, mock_extract):
     assert data["all_keys_collected"] is True
 
 
-@patch("routers.webhook.extract_buckets", new_callable=AsyncMock)
+@patch("agent.agent.extract_buckets", new_callable=AsyncMock)
 def test_webhook_text_when_no_media(mock_extract):
     mock_extract.return_value = _fake_buckets(all_collected=False)
     resp = client.post(
@@ -159,19 +161,19 @@ def test_webhook_text_when_no_media(mock_extract):
 
 
 # ────────────────────────────────────────────
-# _build_reply — fallback for unknown key
+# build_reply — fallback for unknown key
 # ────────────────────────────────────────────
 
 def test_build_reply_fallback_for_unknown_key():
     """A missing key not in TEMPLATES should get a generic prompt."""
-    reply = _build_reply(["district"])
+    reply = build_reply(["district"])
     assert reply == "Could you tell me your district?"
 
 
 def test_build_reply_order_matters():
     """Should ask for the FIRST missing key only."""
-    assert _build_reply(["income", "caste"]) == TEMPLATES["income"]
-    assert _build_reply(["caste", "grade"]) == TEMPLATES["caste"]
+    assert build_reply(["income", "caste"]) == TEMPLATES["income"]
+    assert build_reply(["caste", "grade"]) == TEMPLATES["caste"]
 
 
 # ────────────────────────────────────────────
@@ -179,7 +181,7 @@ def test_build_reply_order_matters():
 # ────────────────────────────────────────────
 
 @pytest.mark.asyncio
-@patch("routers.webhook.extract_buckets", new_callable=AsyncMock)
+@patch("agent.agent.extract_buckets", new_callable=AsyncMock)
 async def test_multi_turn_conversation(mock_extract):
     """Simulate a real 3-message conversation, verify session accumulates."""
     phone = "whatsapp:+multi_turn_test"
@@ -216,7 +218,7 @@ async def test_multi_turn_conversation(mock_extract):
 
 
 @pytest.mark.asyncio
-@patch("routers.webhook.extract_buckets", new_callable=AsyncMock)
+@patch("agent.agent.extract_buckets", new_callable=AsyncMock)
 async def test_multi_turn_does_not_regress_keys(mock_extract):
     """A later message returning null for a key must NOT erase it."""
     phone = "whatsapp:+no_regress"
@@ -247,7 +249,7 @@ async def test_multi_turn_does_not_regress_keys(mock_extract):
 
 
 @pytest.mark.asyncio
-@patch("routers.webhook.extract_buckets", new_callable=AsyncMock)
+@patch("agent.agent.extract_buckets", new_callable=AsyncMock)
 async def test_multi_turn_bpl_income_zero(mock_extract):
     """BPL income=0 should count as collected, not treated as missing."""
     phone = "whatsapp:+bpl_test"
@@ -271,9 +273,9 @@ async def test_multi_turn_bpl_income_zero(mock_extract):
 # ────────────────────────────────────────────
 
 @pytest.mark.asyncio
-@patch("routers.webhook.extract_buckets", new_callable=AsyncMock)
-@patch("routers.webhook.translate_audio", new_callable=AsyncMock)
-@patch("routers.webhook.fetch_twilio_audio", new_callable=AsyncMock)
+@patch("agent.agent.extract_buckets", new_callable=AsyncMock)
+@patch("agent.agent.translate_audio", new_callable=AsyncMock)
+@patch("agent.agent.fetch_twilio_audio", new_callable=AsyncMock)
 async def test_audio_uses_actual_ct_when_content_type_empty(
     mock_fetch, mock_translate, mock_extract
 ):
@@ -295,9 +297,9 @@ async def test_audio_uses_actual_ct_when_content_type_empty(
 
 
 @pytest.mark.asyncio
-@patch("routers.webhook.extract_buckets", new_callable=AsyncMock)
-@patch("routers.webhook.translate_audio", new_callable=AsyncMock)
-@patch("routers.webhook.fetch_twilio_audio", new_callable=AsyncMock)
+@patch("agent.agent.extract_buckets", new_callable=AsyncMock)
+@patch("agent.agent.translate_audio", new_callable=AsyncMock)
+@patch("agent.agent.fetch_twilio_audio", new_callable=AsyncMock)
 async def test_audio_empty_transcript(mock_fetch, mock_translate, mock_extract):
     """If Sarvam returns empty transcript, pipeline should still work."""
     mock_fetch.return_value = (b"silent-audio", "audio/ogg")
@@ -324,7 +326,7 @@ async def test_audio_empty_transcript(mock_fetch, mock_translate, mock_extract):
 # Integration: edge cases
 # ────────────────────────────────────────────
 
-@patch("routers.webhook.extract_buckets", new_callable=AsyncMock)
+@patch("agent.agent.extract_buckets", new_callable=AsyncMock)
 def test_webhook_audio_with_no_media_url(mock_extract):
     """NumMedia=1 but no MediaUrl0 should fall back to text handler."""
     mock_extract.return_value = _fake_buckets(all_collected=False)
@@ -336,7 +338,7 @@ def test_webhook_audio_with_no_media_url(mock_extract):
     assert resp.json()["status"] == "ok"
 
 
-@patch("routers.webhook.extract_buckets", new_callable=AsyncMock)
+@patch("agent.agent.extract_buckets", new_callable=AsyncMock)
 def test_webhook_empty_body(mock_extract):
     """Empty body text should still be accepted and processed."""
     mock_extract.return_value = {

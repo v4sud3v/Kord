@@ -1,4 +1,4 @@
-"""Twilio audio fetching service."""
+"""Tool: Fetch audio from Twilio media URL."""
 
 import os
 
